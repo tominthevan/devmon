@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+'''
+DevMon
+    Start up the device monitor
+'''
+import sys, os, time, logging
+import configparser
+import argparse
+from devMonitor import CancelableThread
+from devMonitor import LogHandler
+from devMonitor import RemoteMonitor
+from devMonitor import LocalMonitor
+from devMonitor import EventHandler
+from devMonitor import ConfigObject,SerialPort
+import pprint, threading
+
+if __name__ != "__main__":
+    print("Must be run from command line")
+    sys.exit(1)
+else:
+#    if __module__ == None:
+#        import path
+#        sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    if os.getuid() != 0:
+        print("Must run as root. Exiting")
+        sys.exit(1)
+        
+#process command line parameners
+parser = argparse.ArgumentParser(description="DevMonitor - device monitoring and reporting")
+parser.add_argument("-l", "--loglevel", help="specify level of logging",
+        default = "ERROR")
+parser.add_argument("-c", "--configfile", help ="specify config file path",
+        default= "DevMonitor.ini")
+parser.add_argument("-f", "--logfile", help="specify error log file path",
+        default=None)
+args = parser.parse_args()
+
+log_file = args.logfile
+log_level= getattr(logging, args.loglevel.upper(),None)
+log_level_bad = False
+if not isinstance(log_level,int):
+    log_level = getattr(logging,"ERROR")
+    log_level_bad = not bool(args.logfile)
+
+logging.basicConfig(filename=log_file,level=log_level)
+if log_level_bad:
+    logging.error("Invalid log level:{0}. Level set to ERROR".format(args.loglevel))
+
+
+config_file = args.configfile
+config = configparser.ConfigParser(allow_no_value=True,inline_comment_prefixes=('#'))
+configFileLastProcessedTime = 0.0   #never
+
+while True:
+    fileLastModified = os.path.getmtime(config_file)
+
+    if  fileLastModified > configFileLastProcessedTime:
+        logging.log(100,"flm:" +
+              time.strftime("%Y/%m/%d %H:%M:%S",time.localtime(fileLastModified)) +
+              " clp:" +
+              time.strftime("%Y/%m/%d %H:%M:%S",time.localtime(configFileLastProcessedTime)))
+        if configFileLastProcessedTime > 0.0:
+            logging.log(100,"Updated config file detected")
+            #cancel any currently active monitoring, logging, reporting etc
+            logging.log(100,"Shutting down any current monitoring activity")
+            localMonitor.cancel()
+            remoteMonitor.cancel()
+            eventHandler.cancel()
+            logHandler.cancel()
+            #remove any existing config objects
+            ConfigObject.discard_all_instances()
+            
+        logging.log(100,"Processing config file:" + config_file)
+        configFileLastProcessedTime = fileLastModified
+
+        #process config file and restart monitoring, logging and reporting
+        logging.log(100,"start processing config file")
+        config.read(config_file)
+
+        #configure the data logger
+        logHandler = LogHandler(config)
+        #configure the server updater
+        eventHandler = EventHandler(config)
+        #configure the remote monitor
+        remoteMonitor = RemoteMonitor(config)
+        #configure the local sensor handler
+        localMonitor = LocalMonitor(config)
+
+        #startup the whole she-bang
+        logHandler.doStart()
+        eventHandler.doStart()
+        remoteMonitor.doStart()
+        localMonitor.doStart()
+        
+    
+#    print("idling...")
+    time.sleep(5.0)
+    
