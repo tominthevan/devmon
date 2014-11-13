@@ -4,7 +4,8 @@ Created on Aug 30, 2013
 @author: tom
 '''
 import urllib.request
-import pprint
+import http.client
+import logging
 import string
 import time
 from ..event import Event
@@ -27,23 +28,25 @@ class Server(ConfigObject):
 class HSV1(Server):
         
     def update_(self, ev):
-        result = 0
+        upderr = None
         try:
             req = urllib.request.Request(url=self.URL)
             evDict = Event(*ev).__dict__
             del evDict["time"]
-            data = urllib.parse.urlencode(evDict)
-            print(data)
-            data = data.encode('utf-8')
-            f = urllib.request.urlopen(req,data = data)
+            evdata = urllib.parse.urlencode(evDict)
+            logging.debug(__name__ + ": server update: " + evdata)
+            evdata = evdata.encode('utf-8')
+            f = urllib.request.urlopen(req, data = evdata)
         except urllib.error.URLError as descr:
-            result = descr
+            upderr = "URL Error(" + self.URL + "," + descr + ")"
+        except http.client.HTTPException as descr:
+            upderr = "HTTP Error(" + self.URL + "," + descr + ")"
+        except socket.error as descr:
+            upderr = "Socket Error(" + self.URL + "," + descr + ")"
         else:
-            result = f.read().decode('utf-8').strip("\n ")
-            if result == "OK":
-                return
-        print("Server update error: ")
-#       pprint.pprint(sensor_update_dict)
-#       print("     Status:",f.status," : ", f.reason)
-        print("     Result: ~", result,"~")
+            result = str(f.getcode())
+            if result != "200":
+                upderr = f.read().decode('utf-8').strip()
+        if upderr:
+            logging.error(__name__ + ":server update error: " + str(upderr))
 
