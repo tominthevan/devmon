@@ -44,7 +44,7 @@ if not isinstance(log_level,int):
 
 logging.basicConfig(filename=log_file,level=log_level)
 if log_level_bad:
-    logging.error("Invalid log level:{0}. Level set to ERROR".format(args.loglevel))
+    logging.error(__name__ + ":invalid log level:{0}. Level set to ERROR".format(args.loglevel))
 
 
 config_file = args.configfile
@@ -55,14 +55,14 @@ while True:
     fileLastModified = os.path.getmtime(config_file)
 
     if  fileLastModified > configFileLastProcessedTime:
-        logging.log(100,"flm:" +
+        logging.info(__name__ + ":flm:" +
               time.strftime("%Y/%m/%d %H:%M:%S",time.localtime(fileLastModified)) +
               " clp:" +
               time.strftime("%Y/%m/%d %H:%M:%S",time.localtime(configFileLastProcessedTime)))
         if configFileLastProcessedTime > 0.0:
-            logging.log(100,"Updated config file detected")
+            logging.info(__name__ + "updated config file detected")
             #cancel any currently active monitoring, logging, reporting etc
-            logging.log(100,"Shutting down any current monitoring activity")
+            logging.info(__name__ + "shutting down any current monitoring activity")
             localMonitor.cancel()
             remoteMonitor.cancel()
             eventHandler.cancel()
@@ -70,11 +70,11 @@ while True:
             #remove any existing config objects
             ConfigObject.discard_all_instances()
             
-        logging.log(100,"Processing config file:" + config_file)
+        logging.info(__name__ + ":processing config file:" + config_file)
         configFileLastProcessedTime = fileLastModified
 
         #process config file and restart monitoring, logging and reporting
-        logging.log(100,"start processing config file")
+        logging.info(__name__ + ":start processing config file")
         config.read(config_file)
 
         #configure the data logger
@@ -86,12 +86,15 @@ while True:
         #configure the local sensor handler
         localMonitor = LocalMonitor(config)
 
+        logging.info(__name__ + ":completed processing config file")
+
         #startup the whole she-bang
+        logging.info(__name__ + ":starting threads")
         logHandler.doStart()
         eventHandler.doStart()
         remoteMonitor.doStart()
         localMonitor.doStart()
-        
+        logging.info(__name__ + ":threads started")
     
 #    print("idling...")
     time.sleep(5.0)

@@ -10,6 +10,7 @@ The message comes as a collection of integers from the SerialPort
     msg[4:] dependent on the originating mode
 '''
 
+import logging
 from .configObject import ConfigObject
 from .server import Server
 from ..event import Event
@@ -30,7 +31,7 @@ class TypedMessage(ConfigObject):
         if sel in cls.selector:
             cls.selector[sel].processMsg(msg,node)
         else:
-            print("Unknown message type:",sel, cls.selector)
+            logging.error(__name__ + "Unknown message type:" + str(sel))
 
                 
 class TempMonFlexi(TypedMessage):

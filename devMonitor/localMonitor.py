@@ -8,7 +8,7 @@ Created on Aug 29, 2013
 
 @author: tom
 '''
-import sched, time
+import sched, time, logging
 import os.path
 import wiringpi2 as wiringpi
 
@@ -30,7 +30,7 @@ class LocalMonitor(CancelableThread):
 
 
     def run(self):            
-        print("Initializing WiringPi2")
+        logging.info(__name__ + ":initializing WiringPi2")
         wiringpi.wiringPiSetup()
 
         localNode = Node.local

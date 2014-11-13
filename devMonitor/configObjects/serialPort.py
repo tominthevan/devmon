@@ -3,12 +3,10 @@ Created on June 30, 2014
 
 @author: tom
 '''
+import time, serial, logging
 from ..cancelableThread import CancelableThread
 from .node import Node
 from queue import Queue
-import time
-import serial
-from .node import Node
 from .configObject import ConfigObject
 
 class SerialPort(ConfigObject,CancelableThread):
@@ -32,13 +30,20 @@ class SerialPort(ConfigObject,CancelableThread):
         
     def openSerial(self):
         self.synced = False
-        return(serial.Serial(port = self.dev,
+        try:
+            ser = serial.Serial(port = self.dev,
                             baudrate = self.baudrate,
                             bytesize = 8,
                             parity = self.parity,
                             stopbits = self.stopbits,
                             timeout = 2,
-                            interCharTimeout = 0.5))
+                            interCharTimeout = 0.5)
+        except serial.SerialException:
+            logging.error("Serial Port open error")
+            ser = None
+            self.cancelled = True
+        return ser
+            
 
     def run(self):
         ser = self.openSerial()
@@ -49,12 +54,10 @@ class SerialPort(ConfigObject,CancelableThread):
                 self.synced = self.initRemote(ser)
 
     def processMsg(self, msg):
-        #TODO handle error
-        pass
+        logging.debug("Unexpected call to SerialPort.processMsg")
 
     def initRemote(self, ser):
-        #TODO handle error
-        pass
+        logging.debug("unexpected call to SerialPort.initRemote")
 
 class Rf12demoPort(SerialPort):
 
