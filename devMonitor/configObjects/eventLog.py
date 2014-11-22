@@ -5,8 +5,7 @@ EventLog objects store values to be logged by the log handler
 
 @author: tom
 '''
-import string, os
-import time
+import string, os, time, logging
 from ..event import Event
 from ..logHandler import LogHandler
 
@@ -18,13 +17,14 @@ class EventLog(ConfigObject):
         pass
 
     def qEvent(self,evt):
-#        print("Not logging:", *evt)
         pass
 
 class CSVFileLog(EventLog):
     def __init__(self,config,key):
         log = config[key]
         self.interval = int(log["interval"])
+        roth,rotm = divmod(int(log.get("TODRoll",0)),100)  #rollover time defaults to 0 (midnight)
+        self.roTOD = (roth * 60 + rotm) * 60  # set the time of day of the rollover in second
         self.folder = os.path.realpath(os.path.normpath(log["folder"]))
         if not os.path.exists(self.folder):
             self.folder = os.path.normpath(os.getcwd()+"/logfiles")
@@ -35,7 +35,6 @@ class CSVFileLog(EventLog):
         EventLog.__init__(self,config,key)
 
     def qEvent(self,evt):
-#        print("Logging:", *evt)
         LogHandler.qEvent((self,evt))
 
     def update(self,evt):
@@ -43,10 +42,9 @@ class CSVFileLog(EventLog):
         if recId in self.records:
             dfl,pel = self.records[recId]
         else:
-            dfl = DailyFileLog(self.folder,evt)
+            dfl = DailyFileLog(self.folder, evt, self.roTOD)
             pel = PeriodicEventLog(self.interval, evt)
             self.records[recId] = (dfl,pel)
-#        print("updLog1", evt[1], evt[0])
         while not pel.updated(evt):
             ev = pel.nextLogRec(evt[0])
             assert(ev != None)
@@ -88,7 +86,6 @@ class PeriodicEventLog():
                 for i,val in enumerate(evt[4]):
                     self.ev.values[i] += val
                 self.count += 1
-#            print("acc", evt[1], self.count, evt[0])
             return(True)   #update done
 
     def nextLogRec(self,time):
@@ -109,27 +106,46 @@ class PeriodicEventLog():
                 self.count = 0
                 self.ev.time = self.nextRecTime
                 self.nextRecTime += self.interval
-#                print("Upd nextrectime", self.ev.nodeId, self.nextRecTime)
                 return(self.ev)
 
 class DailyFileLog():
     SECSPERDAY = 24 * 60 * 60
-    def __init__(self, folder, evt):
+    def __init__(self, folder, evt, roTOD):
         self.prefix = folder + evt[2] + str(evt[3]) + "-"
         self.fd = None
-        self.nextDay = 0
+        self.roTOD = roTOD
+        self.roTime = 0
 
     def update(self, evTime, evStr):
-        if evTime >= self.nextDay:
+        if evTime >= self.roTime:
             if self.fd != None:
                 self.fd.close()
-            day = int(evTime/self.SECSPERDAY)*self.SECSPERDAY
-            self.nextDay = day + self.SECSPERDAY
-            self.fd = open(self.prefix + time.strftime("%Y%m%d",time.gmtime(day)) + ".csv",
+            evTimeStruc = time.localtime(evTime)    #create an event struct_time for local time
+            # a struct_time is a named tuple. Tuples cant be modified so, in order 
+            # to modify the struct_time we have to convert it to a list, modify it,
+            # and then convert it back to a tuple and then struct_time
+            tl = list(evTimeStr)
+            tl[3],tl[4] = divmod(self.roTOD,60)
+            tl[5] = 0
+            roTimeStruc = time.struct_time(tuple(tl))
+            logDay = time.mktime(roTimeStruc)     # the time used to name the daily file
+            # check for initial case where the first event recorded is before the rollover
+            # time in a day. This can only happen for the first event recorded to a file as
+            # the rollover time (self.roTime) is initialized to 0.
+            if evtime >= logDay:
+                #we are at or past the rollover time for the day 
+                self.roTime = logDay + self.SECSPERDAY    # rollover time is 24 hrs after logDay
+            else:
+                #we are before the rollover time for the day, so we are still recording for the previous day
+                self.logDay = self.logDay - self.SECSPERDAY # move back 24 hours
+                self.roTime = logDay
+
+            um = os.umask(0)          # enable read/write by all
+            self.fd = open(self.prefix + time.strftime("%Y%m%d",time.localtime(logDay)) + ".csv",
                            mode='a')
-#            print("opened",self.fd.name)
+            um = os.umask(um)         # restore umask
+            logging.info(__name__ + ":log file started - " + fname)
+
         self.fd.write(evStr)
-        self.fd.flush()
-#        print("wrote", evStr[0:20])
-        
+        self.fd.flush()        
 
