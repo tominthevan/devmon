@@ -38,11 +38,11 @@ class HSV1(Server):
             evdata = evdata.encode('utf-8')
             f = urllib.request.urlopen(req, data = evdata)
         except urllib.error.URLError as descr:
-            upderr = "URL Error(" + self.URL + "," + descr + ")"
-        except http.client.HTTPException as descr:
-            upderr = "HTTP Error(" + self.URL + "," + descr + ")"
+            upderr = "URL Error(" + self.URL + "," + descr.__str__() + ")"
+        except http.client.HTTPException as inst:
+            upderr = "HTTP Error(" + self.URL + "," + type(inst) + ")"
         except socket.error as descr:
-            upderr = "Socket Error(" + self.URL + "," + descr + ")"
+            upderr = "Socket Error(" + self.URL + "," + descr.__str__() + ")"
         else:
             result = str(f.getcode())
             if result != "200":
