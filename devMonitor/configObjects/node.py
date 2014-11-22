@@ -31,6 +31,7 @@ class Node(ConfigObject):
         log = node.get("eventlog", None)
         if log != None:
             log = EventLog.add(config,log)
+            log.devNum(self.devStr,self.devNum)
         else:   # EventLog base class provides the default "no logging" service
             log = EventLog
         self.eventlog = log
