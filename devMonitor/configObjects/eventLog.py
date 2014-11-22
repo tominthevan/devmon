@@ -5,10 +5,11 @@ EventLog objects store values to be logged by the log handler
 
 @author: tom
 '''
-import string, os, time, logging
+import string, os
 import time
 from ..event import Event
 from ..logHandler import LogHandler
+
 from .configObject import ConfigObject
 
 class EventLog(ConfigObject):
@@ -19,42 +20,8 @@ class EventLog(ConfigObject):
     def qEvent(self,evt):
 #        print("Not logging:", *evt)
         pass
-    def devNum(self,dev,num):
-        self.fileNamePrefix = str(dev)+str(num)
 
-class DailyFileLog(EventLog):
-    SECSPERDAY = 24 * 60 * 60
-    def __init__(self,config,key):
-        self.fd = None
-        self.nextRollover = 0
-        print("config=",config,"|||key=",key,"|||")
-        log = config[key]
-        roth,rotm = divmod(int(log.get("TODRoll",0)),100)  #rollover time defaults to 0 (midnight)
-        self.roTOD = (roth * 60 + rotm) * 60  # set the time of day of the rollover in second
-        curday,cursecs = divmod(time.time(),self.SECSPERDAY)
-        if cursecs < self.roTOD:  # is time before the rollover time of day
-            curday -= 1           # if so back up day to previous (for log file naming)
-            
-        super().__init__(config,key)
-
-    def updateFile(self, evTime, evStr):
-        if evTime >= self.nextRollover:
-            if self.fd != None:
-                self.fd.close()
-            day,secs = divmod(evTime, self.SECSPERDAY)
-            if secs < self.roTOD:     # is this a startup and we are before the rollover time of day?
-                day = day -1          # if so, back up log day to previous
-            day = day * self.SECSPERDAY
-            fname = self.fileNamePrefix + time.strftime("%Y%m%d",time.localtime(day)) + ".csv"
-            um = os.umask(0)          # enable read/write by all
-            self.fd = open(fname, mode='a')
-            um = os.umask(um)         # restore ymask
-            logging.info(__name__ + ":log file started - " + fname)
-            self.nextRollover = day + self.roTOD + self.SECSPERDAY
-        self.fd.write(evStr)
-        self.fd.flush()
-        
-class CSVFileLog(DailyFileLog):
+class CSVFileLog(EventLog):
     def __init__(self,config,key):
         log = config[key]
         self.interval = int(log["interval"])
@@ -65,7 +32,7 @@ class CSVFileLog(DailyFileLog):
                 os.mkdir(self.folder)
         self.folder = os.path.normpath(self.folder + "/log")
         self.records = dict()
-        super().__init__(config,key)
+        EventLog.__init__(self,config,key)
 
     def qEvent(self,evt):
 #        print("Logging:", *evt)
@@ -74,18 +41,19 @@ class CSVFileLog(DailyFileLog):
     def update(self,evt):
         recId = (evt[1],evt[3])     # nodeId,devNo form key
         if recId in self.records:
-            pea = self.records[recId]
+            dfl,pel = self.records[recId]
         else:
-            pea = PeriodicEventAccumulator(self.interval, evt)
-            self.records[recId] = pea
+            dfl = DailyFileLog(self.folder,evt)
+            pel = PeriodicEventLog(self.interval, evt)
+            self.records[recId] = (dfl,pel)
 #        print("updLog1", evt[1], evt[0])
-        while not pea.updated(evt):
-            ev = pea.nextLogRec(evt[0])
+        while not pel.updated(evt):
+            ev = pel.nextLogRec(evt[0])
             assert(ev != None)
-            self.updateFile(ev.time,self.formatCSV(ev))
+            dfl.update(ev.time,self.formatCSV(ev))
 
     def formatCSV(self,ev):
-        line = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(ev.time))
+        line = time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime(ev.time))
         line += ",{0},{1},{2}".format(ev.nodeId,ev.devStr,ev.devNum)
         for val in ev.values: line += ",{0}".format(val)
         return(line + "\n")
@@ -93,10 +61,8 @@ class CSVFileLog(DailyFileLog):
 #############################################
 #   Logging Utility Classes
 #############################################
-#   PeriodicEventAccumulator
-#     receive events produced at some rate and accumulate them so they can be recorded at another (longer) interval
-#     the recorded event is the average of all events received during the recording interval
-class PeriodicEventAccumulator():
+
+class PeriodicEventLog():
     def __init__(self, interval, evt):
         self.ev = Event(*evt)
         self.interval = interval
@@ -127,7 +93,7 @@ class PeriodicEventAccumulator():
 
     def nextLogRec(self,time):
             #Get the next log record (in the form of an Event) to emit.
-            #Repeated calls will return an event until there is no more need to
+            #Repeated calls will return an event until there is more need to
             #write a record for values accumulated prior to the current event
             #we are trying to log. This may result in more than 1 record to
             #be written until until the event being logged is before time of
@@ -146,5 +112,24 @@ class PeriodicEventAccumulator():
 #                print("Upd nextrectime", self.ev.nodeId, self.nextRecTime)
                 return(self.ev)
 
+class DailyFileLog():
+    SECSPERDAY = 24 * 60 * 60
+    def __init__(self, folder, evt):
+        self.prefix = folder + evt[2] + str(evt[3]) + "-"
+        self.fd = None
+        self.nextDay = 0
+
+    def update(self, evTime, evStr):
+        if evTime >= self.nextDay:
+            if self.fd != None:
+                self.fd.close()
+            day = int(evTime/self.SECSPERDAY)*self.SECSPERDAY
+            self.nextDay = day + self.SECSPERDAY
+            self.fd = open(self.prefix + time.strftime("%Y%m%d",time.gmtime(day)) + ".csv",
+                           mode='a')
+#            print("opened",self.fd.name)
+        self.fd.write(evStr)
+        self.fd.flush()
+#        print("wrote", evStr[0:20])
         
 
