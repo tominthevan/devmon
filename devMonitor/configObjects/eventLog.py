@@ -24,7 +24,7 @@ class CSVFileLog(EventLog):
         log = config[key]
         self.interval = int(log["interval"])
         roth,rotm = divmod(int(log.get("TODRoll",0)),100)  #rollover time defaults to 0 (midnight)
-        self.roTOD = (roth * 60 + rotm) * 60  # set the time of day of the rollover in second
+        self.roTOD = roth * 60 + rotm  # set the time of day of the rollover in minutes
         self.folder = os.path.realpath(os.path.normpath(log["folder"]))
         if not os.path.exists(self.folder):
             self.folder = os.path.normpath(os.getcwd()+"/logfiles")
@@ -51,7 +51,7 @@ class CSVFileLog(EventLog):
             dfl.update(ev.time,self.formatCSV(ev))
 
     def formatCSV(self,ev):
-        line = time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime(ev.time))
+        line = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(ev.time))
         line += ",{0},{1},{2}".format(ev.nodeId,ev.devStr,ev.devNum)
         for val in ev.values: line += ",{0}".format(val)
         return(line + "\n")
@@ -124,7 +124,7 @@ class DailyFileLog():
             # a struct_time is a named tuple. Tuples cant be modified so, in order 
             # to modify the struct_time we have to convert it to a list, modify it,
             # and then convert it back to a tuple and then struct_time
-            tl = list(evTimeStr)
+            tl = list(evTimeStruc)
             tl[3],tl[4] = divmod(self.roTOD,60)
             tl[5] = 0
             roTimeStruc = time.struct_time(tuple(tl))
@@ -132,17 +132,17 @@ class DailyFileLog():
             # check for initial case where the first event recorded is before the rollover
             # time in a day. This can only happen for the first event recorded to a file as
             # the rollover time (self.roTime) is initialized to 0.
-            if evtime >= logDay:
+            if evTime >= logDay:
                 #we are at or past the rollover time for the day 
                 self.roTime = logDay + self.SECSPERDAY    # rollover time is 24 hrs after logDay
             else:
                 #we are before the rollover time for the day, so we are still recording for the previous day
-                self.logDay = self.logDay - self.SECSPERDAY # move back 24 hours
+                logDay = logDay - self.SECSPERDAY # move back 24 hours
                 self.roTime = logDay
 
+            fname = self.prefix + time.strftime("%Y%m%d",time.localtime(logDay)) + ".csv"
             um = os.umask(0)          # enable read/write by all
-            self.fd = open(self.prefix + time.strftime("%Y%m%d",time.localtime(logDay)) + ".csv",
-                           mode='a')
+            self.fd = open(fname, mode='a')
             um = os.umask(um)         # restore umask
             logging.info(__name__ + ":log file started - " + fname)
 
