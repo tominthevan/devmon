@@ -27,21 +27,22 @@ class DailyFileLog(EventLog):
     def __init__(self,config,key):
         self.fd = None
         self.nextRollover = 0
+        print("config=",config,"|||key=",key,"|||")
         log = config[key]
-        roth,rotm = divmod(int(log.get("TODRoll",0)))  #rollover time defaults to 0 (midnight)
+        roth,rotm = divmod(int(log.get("TODRoll",0)),100)  #rollover time defaults to 0 (midnight)
         self.roTOD = (roth * 60 + rotm) * 60  # set the time of day of the rollover in second
-        curday,cursecs = divmod(time(),self.SECSPERDAY)
+        curday,cursecs = divmod(time.time(),self.SECSPERDAY)
         if cursecs < self.roTOD:  # is time before the rollover time of day
             curday -= 1           # if so back up day to previous (for log file naming)
             
-        super.__init__(self,config,key)
+        super().__init__(config,key)
 
-    def update(self, evTime, evStr):
+    def updateFile(self, evTime, evStr):
         if evTime >= self.nextRollover:
             if self.fd != None:
                 self.fd.close()
             day,secs = divmod(evTime, self.SECSPERDAY)
-            if secs < self.roTOD      # is this a startup and we are before the rollover time of day?
+            if secs < self.roTOD:     # is this a startup and we are before the rollover time of day?
                 day = day -1          # if so, back up log day to previous
             day = day * self.SECSPERDAY
             fname = self.fileNamePrefix + time.strftime("%Y%m%d",time.localtime(day)) + ".csv"
@@ -64,7 +65,7 @@ class CSVFileLog(DailyFileLog):
                 os.mkdir(self.folder)
         self.folder = os.path.normpath(self.folder + "/log")
         self.records = dict()
-        super.__init__(self,config,key)
+        super().__init__(config,key)
 
     def qEvent(self,evt):
 #        print("Logging:", *evt)
@@ -73,16 +74,15 @@ class CSVFileLog(DailyFileLog):
     def update(self,evt):
         recId = (evt[1],evt[3])     # nodeId,devNo form key
         if recId in self.records:
-            dfl,pea = self.records[recId]
+            pea = self.records[recId]
         else:
-            dfl = DailyFileLog(self.folder,evt)
             pea = PeriodicEventAccumulator(self.interval, evt)
-            self.records[recId] = (dfl,pea)
+            self.records[recId] = pea
 #        print("updLog1", evt[1], evt[0])
         while not pea.updated(evt):
             ev = pea.nextLogRec(evt[0])
             assert(ev != None)
-            dfl.update(ev.time,self.formatCSV(ev))
+            self.updateFile(ev.time,self.formatCSV(ev))
 
     def formatCSV(self,ev):
         line = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(ev.time))
