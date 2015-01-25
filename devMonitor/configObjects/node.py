@@ -28,6 +28,8 @@ class Node(ConfigObject):
             Node.selector[self.id] = self
         self.devStr = node["devicestr"]
         self.devNum = int(node["devicenum"])
+        self.minServerEventInterval = int(node["MinServerEventInterval"])
+        self.lastEvent = 0
         log = node.get("eventlog", None)
         if log != None:
             log = EventLog.add(config,log)

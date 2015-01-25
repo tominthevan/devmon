@@ -10,7 +10,7 @@ The message comes as a collection of integers from the SerialPort
     msg[4:] dependent on the originating mode
 '''
 
-import logging
+import logging, time
 from .configObject import ConfigObject
 from .server import Server
 from ..event import Event
@@ -24,6 +24,7 @@ class TypedMessage(ConfigObject):
         self.devNum = int(msg["devicenum"])
         TypedMessage.selector[self.id] = self
         self.server = Server.add(config, msg["server"])
+        self.lastServerEvent = 0
 
     @classmethod
     def processMsg(cls, msg, node):
@@ -44,6 +45,13 @@ class TempMonFlexi(TypedMessage):
                 value -= 65536
             ev.addValue(value)
         evt=ev.tuple()
-        node.server.qEvent(evt)
+        now = time.time()
+        # don't send the server messages coming too frequently
+        # ideally, the node should be set up to emit at the proper interval
+        # this is a throttle to prevent server overload in case the node is
+        # not well behaved.
+        if (now-self.lastServerEvent) > node.minServerEventInterval:
+            node.server.qEvent(evt)
+            self.lastServerEvent = now
         node.eventlog.qEvent(evt)
                 

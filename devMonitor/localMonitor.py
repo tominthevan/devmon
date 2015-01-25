@@ -39,6 +39,7 @@ class LocalMonitor(CancelableThread):
         lastReport = time.time()
         lastRead = 0.0
         sigChange = False
+        needToReport = False
         while not self.cancelled:
             now = time.time()
             if now - lastRead > localNode.monitorInterval:
@@ -49,12 +50,15 @@ class LocalMonitor(CancelableThread):
             if sigChange or (now - lastReport) > localNode.reportInterval:
                 for i,sensor in enumerate(self.sensors):
                     localEvent.values[i] = round(sensor.report()*10)
-                lastReport = now
                 localEvent.time = now
                 evt = localEvent.tuple()
-                localNode.server.qEvent(evt)
                 localNode.eventlog.qEvent(evt)
+                needToReport = True
                 sigChange = False
+            if needToReport and (now - lastReport) > localNode.minServerEventInterval:
+                localNode.server.qEvent(evt)
+                lastReport = now
+                needToReport = False
             time.sleep(max(0, min(2,
                                   lastRead + localNode.monitorInterval - now,
                                   lastReport + localNode.reportInterval - now)))
