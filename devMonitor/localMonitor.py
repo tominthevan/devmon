@@ -23,10 +23,12 @@ class LocalMonitor(CancelableThread):
 
         CancelableThread.__init__(self,"LocalMonitor")
         #...process the local sensor part of the log file
-        senslist = [item.strip() for item in config["Sensors"]["list"].split(",")]
         self.sensors = []
-        for sen in senslist:
-            self.sensors.append(Sensor.add(config, sen))
+        configlist = config["Sensors"]["list"]
+        if configlist != "":
+            senslist = [item.strip() for item in configlist.split(",")]
+            for sen in senslist:
+                self.sensors.append(Sensor.add(config, sen))
 
 
     def run(self):            
@@ -57,6 +59,7 @@ class LocalMonitor(CancelableThread):
                 sigChange = False
             if needToReport and (now - lastReport) > localNode.minServerEventInterval:
                 localNode.server.qEvent(evt)
+                logging.debug(__name__+":logged event for-"+str(evt))
                 lastReport = now
                 needToReport = False
             time.sleep(max(0, min(2,

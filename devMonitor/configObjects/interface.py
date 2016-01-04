@@ -55,3 +55,18 @@ class PCF8591(I2C):
         millivolts = self.fullScale * int_value / 255.0
 #        print("getvalue %f3(%i) from channel %i at address %i on port %i" % (millivolts, int_value, channel,self.address, self.port))
         return(millivolts)
+
+class TestRamp(Interface):
+    def __init__(self,config,key):
+        iface = config[key]
+        self.fullscale = float(iface["FullScale"])
+        self.step = float(iface["Step"])
+        self.value = self.fullscale
+
+    def get_value(self,channel):
+        self.value = self.value + self.step
+        if self.value > self.fullscale:
+            self.value = 0
+        return(self.value)
+        
+    

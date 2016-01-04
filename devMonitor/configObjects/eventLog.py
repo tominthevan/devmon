@@ -120,6 +120,7 @@ class DailyFileLog():
         if evTime >= self.roTime:
             if self.fd != None:
                 self.fd.close()
+            logging.info(__name__+"log rollover:"+str(evTime)+":"+str(self.roTime))
             evTimeStruc = time.localtime(evTime)    #create an event struct_time for local time
             # a struct_time is a named tuple. Tuples cant be modified so, in order 
             # to modify the struct_time we have to convert it to a list, modify it,
@@ -137,7 +138,6 @@ class DailyFileLog():
                 self.roTime = logDay + self.SECSPERDAY    # rollover time is 24 hrs after logDay
             else:
                 #we are before the rollover time for the day, so we are still recording for the previous day
-                logDay = logDay - self.SECSPERDAY # move back 24 hours
                 self.roTime = logDay
 
             fname = self.prefix + time.strftime("%Y%m%d",time.localtime(logDay)) + ".csv"

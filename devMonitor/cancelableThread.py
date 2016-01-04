@@ -4,6 +4,7 @@ Created on July 7, 2014
 @author: tom
 '''
 from threading import Thread
+import logging
 
 class CancelableThread(Thread):
     def __init__(self, name):
@@ -21,7 +22,7 @@ class CancelableThread(Thread):
                 self.join(timeout = 2.0)
                 tries = tries + 1
             if tries >= 10:
-                print("cancel failed for: "+self.name)
+                logging.error(__name__+":cancel failed for: "+self.name)
 
     def isCancelled(self):
         return(self.cancelled)

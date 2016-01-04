@@ -29,4 +29,4 @@ class EventHandler(CancelableThread):
                 server,ev = self.eventQ.get(timeout= 2)
             except Empty:
                 continue
-            server.update_(ev)
+            server.update(ev)

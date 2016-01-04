@@ -20,7 +20,7 @@ class Event(object):
         self.values.append(value)
 
     def __iter__(self):
-        for item in values:
+        for item in self.values:
             yield(item)
 
     def tuple(self):
