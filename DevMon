@@ -21,9 +21,8 @@ else:
 #    if __module__ == None:
 #        import path
 #        sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-    if os.getuid() != 0:
-        print("Must run as root. Exiting")
-        sys.exit(1)
+     if os.getuid() != 0:
+         print("Not Running as root.")
         
 #process command line parameners
 parser = argparse.ArgumentParser(description="DevMonitor - device monitoring and reporting")
@@ -39,7 +38,7 @@ log_file = args.logfile
 log_level= getattr(logging, args.loglevel.upper(),None)
 log_level_bad = False
 if not isinstance(log_level,int):
-    log_level = getattr(logging,"ERROR")
+    log_level = getattr(logging,"WARNING")
     log_level_bad = not bool(args.logfile)
 
 logging.basicConfig(filename=log_file,level=log_level)
