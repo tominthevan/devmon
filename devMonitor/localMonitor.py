@@ -10,7 +10,7 @@ Created on Aug 29, 2013
 '''
 import sched, time, logging
 import os.path
-import wiringpi2 as wiringpi
+import wiringpi
 
 from .configObjects import Sensor, Node
 from .cancelableThread import CancelableThread
@@ -54,6 +54,7 @@ class LocalMonitor(CancelableThread):
                     localEvent.values[i] = round(sensor.report()*10)
                 localEvent.time = now
                 evt = localEvent.tuple()
+                logging.debug(__name__ + "Local event:" + str(evt))
                 localNode.eventlog.qEvent(evt)
                 needToReport = True
                 sigChange = False

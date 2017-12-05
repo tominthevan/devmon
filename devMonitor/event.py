@@ -26,4 +26,10 @@ class Event(object):
     def tuple(self):
         return (self.time,self.nodeId,self.devStr,self.devNum,tuple(self.values))
 
+    def __str__(self):
+        return (str(self.time) + "|Node " + str(self.nodeId) + "-" +
+                    self.devStr+str(self.devNum) + str(self.values))
         
+                    
+        
+                    

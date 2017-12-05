@@ -1,4 +1,6 @@
 '''
+device.py
+
 Created on Aug 30, 2013
 
 @author: tom
@@ -30,9 +32,14 @@ class Tmp36(Device):
     
     def convert(self,millivolts):
         # TMP36 is an analog temperature sensor
-        
         tempC = (millivolts - 500.0) / 10.0
 #        print("TMP36: millivolts= %f3 Temp = %f3" % (millivolts, tempC))
         return(tempC)
         
-    
+class OWDevice(Device):
+    def __init__(self,config,key):
+        super().__init__(config,key)
+
+# OW Sensors generally report values in applicable engineering units    
+    def convert(self,reading):
+        return reading

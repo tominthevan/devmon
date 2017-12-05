@@ -3,10 +3,11 @@ Created on Aug 30, 2013
 
 @author: tom
 '''
-import random
-import wiringpi2 as wiringpi
+import random, logging
+import wiringpi
 
 from .configObject import ConfigObject
+from onewire import Onewire
 
 class Interface(ConfigObject):
     instances = {}
@@ -14,7 +15,16 @@ class Interface(ConfigObject):
     def __init__(self, config, key):
 
         pass
-    
+
+    #the default for all interfaces is that the channel (if
+    #specified) is small integer. If none is given a default
+    #value of zero is used.
+    def channel(self,chanstr):
+        if chanstr == "":
+            return(0)
+        else:
+            return(int(chanstr))
+
 class GPIO(Interface):
     next_pin = 65           # using WiringPi first available pin is #81
     
@@ -62,6 +72,7 @@ class TestRamp(Interface):
         self.fullscale = float(iface["FullScale"])
         self.step = float(iface["Step"])
         self.value = self.fullscale
+        super().__init__(config,key)
 
     def get_value(self,channel):
         self.value = self.value + self.step
@@ -69,4 +80,24 @@ class TestRamp(Interface):
             self.value = 0
         return(self.value)
         
-    
+class OWbase(Interface):
+    def __init__(self,config,key):
+        iface = config[key]
+        logging.debug(__name__+":sysdev="+iface["sysdev"])
+        self.ow = Onewire(iface["sysdev"])
+        super().__init__(config,key)
+
+    # transform the channel value from the config file into
+    # what is need for the OW interface
+    # for OW devices channel is stored as 15 char string
+    def channel(super,chanstr):
+        return(chanstr)  
+
+    def get_value(self,channel):
+        return (float(self.ow.sensor(channel).temperature))
+
+class OWtemp(OWbase):
+    def __init__(self,config,key):
+        iface = config[key]
+        self.valuekey = iface["valuekey"]
+        super().__init__(config,key)
