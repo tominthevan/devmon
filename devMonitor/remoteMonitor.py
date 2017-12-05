@@ -13,15 +13,21 @@ import pprint
 class RemoteMonitor(CancelableThread):
     def __init__(self,config):
         CancelableThread.__init__(self,"RemoteMonitor")
+        
         ports = config["serialports"]["list"].split(",")
-        for port in ports:
-            SerialPort.add(config, port.strip())
+        for port in ports:  #if list is not empty
+            if port != "":
+                SerialPort.add(config, port.strip())
+                
         nodes = config["nodes"]["list"].split(",")
         for node in nodes:
-            Node.add(config,node.strip())
+            if node != "":  #if list is not empty
+                Node.add(config,node.strip())
+                
         messages = config["messages"]["list"].split(",")
         for msg in messages:
-            TypedMessage.add(config,msg.strip())
+            if msg != "":   #if list is not empty
+                TypedMessage.add(config,msg.strip())
 
     def run(self):
         for port in SerialPort.instances:

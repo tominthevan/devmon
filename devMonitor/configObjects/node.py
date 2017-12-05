@@ -30,12 +30,8 @@ class Node(ConfigObject):
         self.devNum = int(node["devicenum"])
         self.minServerEventInterval = int(node["MinServerEventInterval"])
         self.lastEvent = 0
-        log = node.get("eventlog", None)
-        if log != None:
-            log = EventLog.add(config,log)
-        else:   # EventLog base class provides the default "no logging" service
-            log = EventLog
-        self.eventlog = log
+        log = node["eventlog"]
+        self.eventlog = EventLog.add(config,log)
 
     @classmethod
     def processMsg(cls, msg):

@@ -16,6 +16,10 @@ class EventLog(ConfigObject):
     def __init__(self,config,key):
         pass
 
+class NoLogging(EventLog):
+    def __init__(self,config,key):
+        EventLog.__init__(self,config,key)
+
     def qEvent(self,evt):
         pass
 
